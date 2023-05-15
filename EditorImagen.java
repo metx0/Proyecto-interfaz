@@ -37,6 +37,12 @@ public class EditorImagen extends javax.swing.JFrame {
     // Esta es la imagen actual que se despliega en el label
     private ImageIcon currentImage;
 
+    private BufferedImage image;
+    
+    // Este booleano es para llevar el contol de los cambios, para el botón de escalar
+    // Se establece en true al usar Guardar y Guardar como, y en false en los métodos de dibujo
+    private boolean guardado = false;
+
     // El archivo correspondiente a dicha imagen
     // imgFile se inicializa cuando se abre una imagen y cuando se "guarda como"
     // El método guardar guarda la imagen obtenida del label en imgFile
@@ -51,33 +57,31 @@ public class EditorImagen extends javax.swing.JFrame {
 
     // Para evitar conflictos con el mouse listener de las herramientas
     private MouseAdapter currentMouseListener;
-    
+
     // Medidas del lienzo
     private final int anchoLienzo = 1200;
     private final int altoLienzo = 650;
-    
+
     // Estos son constantes para los métodos de dibujo
     private final int anchoPincel = 5;
     private final Color colorPincel = Color.RED;
-    
+
     private final int anchoLinea = 3;
     private final Color colorLinea = Color.yellow;
-    
+
     private final int anchoRect = 3;
     private final Color colorRect = Color.BLUE;
-    
+
     private final int anchoCirc = 4;
     private final Color colorCirc = Color.BLACK;
-   
+
     // Se harán listas que contendrán los trazos de todas las figuras
     // Cuando el método correspondiente trace una nueva figura en la imagen, dicho trazo se añadirá a la lista correspondiente
     // Son arreglos dinámicos que contienen elementos del tipo de las figuras
-    
     private ArrayList<Line2D> lines = new ArrayList<>();
     private ArrayList<Line2D> rectas = new ArrayList<>();
     private ArrayList<Rectangle> rectangulos = new ArrayList<>();
-    private ArrayList <Ellipse2D> elipses = new ArrayList<>();
-    
+    private ArrayList<Ellipse2D> elipses = new ArrayList<>();
 
     /**
      * Creates new form EditorImagen
@@ -308,7 +312,56 @@ public class EditorImagen extends javax.swing.JFrame {
         rectangulos.clear();
         elipses.clear();
     }
-    
+
+    private void pintarImagen() {
+        // Se inicializa el objeto BufferedImage para poner la imagen del label, con las medidas del label
+        image = new BufferedImage(labelImage.getWidth(), labelImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+
+        // Obtenemos el objeto Graphics2D de la imagen creada
+        Graphics2D g2 = image.createGraphics();
+
+        // Dibujamos la imagen actual del label en la imagen creada
+        // Esta instrucción dibuja la imagen del label en el objeto Graphics2D "g2"
+        labelImage.paint(g2);
+
+        // Dibujar todas los trazos hechos por el pincel en la imagen creada
+        g2.setColor(colorPincel);
+        g2.setStroke(new BasicStroke(anchoPincel));
+
+        // Utilizamos bucles for-each, especiales para recorrer listas
+        // Estos se leen "para cada elemento de la lista lines, dibújalo en g2"
+        // Para dibujar los trazos del pincel
+        lines.forEach(trazo -> {
+            g2.draw(trazo);
+        });
+
+        // Para dibujas las líneas rectas
+        g2.setColor(colorLinea);
+        g2.setStroke(new BasicStroke(anchoLinea));
+
+        rectas.forEach(linea -> {
+            g2.draw(linea);
+        });
+
+        // Para dibujar los rectángulos
+        g2.setColor(colorRect);
+        g2.setStroke(new BasicStroke(anchoRect));
+
+        rectangulos.forEach(rect -> {
+            g2.draw(rect);
+        });
+
+        // Para dibujas las elipses
+        g2.setColor(colorCirc);
+        g2.setStroke(new BasicStroke(anchoCirc));
+
+        elipses.forEach(circ -> {
+            g2.draw(circ);
+        });
+
+        g2.dispose();
+    }
+
     // El método abre una imagen con un JFileChoser y la despliega en el label "labelImage"
     private void menuItemAbrirActionPerformed(java.awt.event.ActionEvent evt) {                                              
         // Creamos la instancia del JFileChoser
@@ -342,10 +395,9 @@ public class EditorImagen extends javax.swing.JFrame {
             Image img = currentImage.getImage().getScaledInstance(labelImage.getWidth(), labelImage.getHeight(), Image.SCALE_SMOOTH);
 
             // Asignamos la imagen al label
-            labelImage.setIcon(new ImageIcon(img));            
-            
+            labelImage.setIcon(new ImageIcon(img));
+
             // Nota: podemos crear objetos ImageIcon a partir de objetos Image, la cual es otra clase para manipular imágenes
-            
             // Vaciamos las listas de los elementos. Esto permite que no sigan teniendo los mismos elementos luego de abrir un archivo nuev
             vaciarListas();
         }
@@ -357,93 +409,95 @@ public class EditorImagen extends javax.swing.JFrame {
     }                                             
 
     // Este método escala la imagen según el ancho y el alto introducido mediante un JOptionPane
+    // Al escalar, debemos conservar los dibujos hechos. Tenemos que comprobar que el archivo esté guardado
+    // Si está guardado en memoria, pero se hicieron cambios que aún no están guardados mediante el botón de Guardar, hay que avisar
     private void btnEscalarActionPerformed(java.awt.event.ActionEvent evt) {                                           
         // Tenemos que validar los datos. Los datos son inválidos si son menores o iguales a 0, o si exceden determinada cantidad
         // Dicha cantidad depende del tamaño de la interfaz
         // Manejamos la excepción NumberFormatException, la cual ocurre si el usuario introduce algo que no se puede convertir a entero        
 
-        // Límites marcados según el tamaño de la interfaz
-        int limiteAncho = 1200;
-        int limiteAlto = 720;
+        if (image != null && guardado == true) {
 
-        boolean anchoCorrecto = false; // Este booleano es para llevar el control de las excepciones
-        int ancho = 0;
+            // Límites marcados según el tamaño de la interfaz
+            int limiteAncho = 1200;
+            int limiteAlto = 720;
 
-        // Para el ancho:
-        while (anchoCorrecto != true || ancho <= 0 || ancho > limiteAncho) {
-            // Pedimos el ancho y lo guardamos en input
-            String input = JOptionPane.showInputDialog("Ingrese el nuevo ancho de la imagen");
+            boolean anchoCorrecto = false; // Este booleano es para llevar el control de las excepciones
+            int ancho = 0;
 
-            if (input == null) { // Si se presiona "Cancelar" o la "X", finalizamos
-                return;
-            }
+            // Para el ancho:
+            while (anchoCorrecto != true || ancho <= 0 || ancho > limiteAncho) {
+                // Pedimos el ancho y lo guardamos en input
+                String input = JOptionPane.showInputDialog("Ingrese el nuevo ancho de la imagen");
 
-            try {
-                ancho = Integer.parseInt(input); // Lo intentamos castear a entero
-
-                if (ancho <= 0 || ancho > limiteAncho) { // Un mensaje para valor no permitidos
-                    JOptionPane.showMessageDialog(null, "Valor no permitido para el ancho");
+                if (input == null) { // Si se presiona "Cancelar" o la "X", finalizamos
+                    return;
                 }
 
-                anchoCorrecto = true;
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(null, "Valor numérico inválido");
-                anchoCorrecto = false;
-            }
-        }
+                try {
+                    ancho = Integer.parseInt(input); // Lo intentamos castear a entero
 
-        boolean altoCorrecto = false;
-        int alto = 0;
+                    if (ancho <= 0 || ancho > limiteAncho) { // Un mensaje para valor no permitidos
+                        JOptionPane.showMessageDialog(null, "Valor no permitido para el ancho");
+                    }
 
-        // Para el alto:
-        while (altoCorrecto != true || alto <= 0 || alto > limiteAlto) {
-            // Pedimos el alto y lo guardamos en input
-            String input = JOptionPane.showInputDialog("Ingrese el nuevo alto de la imagen");
-
-            if (input == null) { // Si se presiona "Cancelar" o la "X", finalizamos
-                return;
+                    anchoCorrecto = true;
+                } catch (NumberFormatException e) {
+                    JOptionPane.showMessageDialog(null, "Valor numérico inválido");
+                    anchoCorrecto = false;
+                }
             }
 
-            try {
-                alto = Integer.parseInt(input); // Lo intentamos castear a entero
+            boolean altoCorrecto = false;
+            int alto = 0;
 
-                if (alto <= 0 || alto > limiteAlto) {
-                    JOptionPane.showMessageDialog(null, "Valor no permitido para el alto");
+            // Para el alto:
+            while (altoCorrecto != true || alto <= 0 || alto > limiteAlto) {
+                // Pedimos el alto y lo guardamos en input
+                String input = JOptionPane.showInputDialog("Ingrese el nuevo alto de la imagen");
+
+                if (input == null) { // Si se presiona "Cancelar" o la "X", finalizamos
+                    return;
                 }
 
-                altoCorrecto = true;
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(null, "Valor numérico inválido");
-                altoCorrecto = false;
+                try {
+                    alto = Integer.parseInt(input); // Lo intentamos castear a entero
+
+                    if (alto <= 0 || alto > limiteAlto) {
+                        JOptionPane.showMessageDialog(null, "Valor no permitido para el alto");
+                    }
+
+                    altoCorrecto = true;
+                } catch (NumberFormatException e) {
+                    JOptionPane.showMessageDialog(null, "Valor numérico inválido");
+                    altoCorrecto = false;
+                }
+
             }
 
+            // Ya teniendo el ancho y el alto, procedemos a escalar y mostrar la imagen
+            // Tenemos que recuperar la imagen que representa nuestro variable de instancia BufferedImage "image"
+            ImageIcon icon = new ImageIcon(this.image); // Crea un objeto ImageIcon a partir del BufferedImage
+            // Obtiene un objeto Image a partir del ImageIcon para escalarlo
+            Image imagenEscalada = icon.getImage().getScaledInstance(ancho, alto, Image.SCALE_SMOOTH);
+
+            // La mostramos en el label
+            labelImage.setSize(ancho, alto);
+            labelImage.setIcon(new ImageIcon(imagenEscalada));
         }
-
-        // Ya teniendo el ancho y el alto, procedemos a escalar y mostrar la imagen
-        // Creamos un objeto Image a partir de currentImage. Esto es para poder manipularla con getScaledInstance()
-        Image img = this.currentImage.getImage().getScaledInstance(ancho, alto, Image.SCALE_SMOOTH);
-
-        // La mostramos en el label
-        labelImage.setSize(ancho, alto);
-        labelImage.setIcon(new ImageIcon(img));
+        else {
+            JOptionPane.showMessageDialog(null, "Guarde el archivo para poder modificarlo");
+        }
     }                                          
 
-    // Este método guarda los cambios hechos en el archivo
+    // Este método guarda los cambios hechos en el archivo, incluidos los dibujos
     private void menuItemGuardarActionPerformed(java.awt.event.ActionEvent evt) {                                                
         // Comprobamos que imgFile ya esté inicializado
         // Al inicio, este método no se puede ejecutar, ya que imgFile solo es inicializado con el método
         // abrir y guardar como
         if (imgFile != null) {
-            // Tenemos que recuperar la imagen actual del JLabel "labelImage"
-            // Obtenemos el icono del label "labelImage"
-            Icon icon = labelImage.getIcon();
-
-            // Se crea un objeto BufferedImage a partir de la imagen contenido en icon, usando el método getImage()
-            BufferedImage image = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_RGB);
-
-            Graphics g = image.createGraphics();
-            icon.paintIcon(null, g, 0, 0);
-            g.dispose();
+            // Se llama al método para pintar los dibujos hechos y guardar los cambios
+            pintarImagen();
 
             // Guardamos la imagen en el archivo ya existente
             try {
@@ -452,6 +506,8 @@ public class EditorImagen extends javax.swing.JFrame {
             } catch (IOException e) {
                 JOptionPane.showMessageDialog(this, "Error al guardar archivo");
             }
+            
+            guardado = true;
         }
     }                                               
 
@@ -479,60 +535,17 @@ public class EditorImagen extends javax.swing.JFrame {
                 imgFile = new File(imgFile.getAbsolutePath() + ".jpg");
             }
 
-            // Se crea un objeto BufferedImage para poner la imagen del label, con las medidas del label
-            BufferedImage image = new BufferedImage(labelImage.getWidth(), labelImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+            // Este método contiene todo el código para pintar todos los dibujos en la imagen
+            pintarImagen();
 
-            // Obtenemos el objeto Graphics2D de la imagen creada
-            Graphics2D g2 = image.createGraphics();
-
-            // Dibujamos la imagen actual del label en la imagen creada
-            // Esta instrucción dibuja la imagen del label en el objeto Graphics2D "g2"
-            labelImage.paint(g2);
-
-            // Dibujar todas los trazos hechos por el pincel en la imagen creada
-            g2.setColor(colorPincel); 
-            g2.setStroke(new BasicStroke(anchoPincel));
-            
-            // Utilizamos bucles for-each, especiales para recorrer listas
-            // Estos se leen "para cada elemento de la lista lines, dibújalo en g2"
-            // Para dibujar los trazos del pincel
-            
-            lines.forEach(trazo -> {
-                g2.draw(trazo);
-            });
-            
-            // Para dibujas las líneas rectas
-            g2.setColor(colorLinea);
-            g2.setStroke(new BasicStroke(anchoLinea));
-            
-            rectas.forEach(linea -> {
-                g2.draw(linea);
-            });
-            
-            // Para dibujar los rectángulos
-            g2.setColor(colorRect);
-            g2.setStroke(new BasicStroke(anchoRect));
-            
-            rectangulos.forEach(rect -> {
-                g2.draw(rect);
-            });
-            
-            // Para dibujas las elipses
-            g2.setColor(colorCirc);
-            g2.setStroke(new BasicStroke(anchoCirc));
-            
-            elipses.forEach(circ -> {
-                g2.draw(circ);
-            });
-            
-            g2.dispose();
-            
             // Guardamos la imagen en el archivo imgFile
             try {
                 ImageIO.write(image, "jpg", imgFile);
             } catch (IOException e) {
                 JOptionPane.showMessageDialog(this, "Error al guardar archivo");
             }
+            
+            guardado = true;
         }
     }                                                   
 
@@ -566,6 +579,7 @@ public class EditorImagen extends javax.swing.JFrame {
 
                     g2.drawLine(prevPoint.x, prevPoint.y, e.getX(), e.getY());
                     prevPoint = e.getPoint(); // actualiza la posición anterior del mouse
+                    guardado = false;
                 }
             };
 
@@ -604,12 +618,13 @@ public class EditorImagen extends javax.swing.JFrame {
                     // cuando se suelta el mouse, se toman las coordenadas del otro punto para que este sea el final de la línea.
                     int x2 = e.getX();
                     int y2 = e.getY();
-                    
+
                     // Creamos la línea que se dibujó para poder añadirla a la lista de líneas rectas
                     rectas.add(new Line2D.Double(x1, y1, x2, y2)); // La añadimos a la lista
-                    
+
                     // se dibuja la línea.
                     g2d.drawLine(x1, y1, x2, y2);
+                    guardado = false;
                 }
             };
             // su respectivo mouse listener :)
@@ -634,7 +649,7 @@ public class EditorImagen extends javax.swing.JFrame {
         // currentImage pasa a ser la imagen del lienzo
         // Esto es para también poder escalarlo si se quiere
         currentImage = (ImageIcon) labelImage.getIcon();
-        
+
         vaciarListas();
     }                                             
 
@@ -674,12 +689,13 @@ public class EditorImagen extends javax.swing.JFrame {
                     // conseguir la esquina superior izquierda del rectángulo con Math.min para devolver el valor más pequeño.
                     int x = Math.min(x1, x2);
                     int y = Math.min(y1, y2);
-                    
+
                     // Añadimos el rectángulo dibujado a la lista
                     rectangulos.add(new Rectangle(x, y, width, height));
 
                     // dibuja el rectangulo.
                     g2dR.drawRect(x, y, width, height);
+                    guardado = false;
                 }
             };
 
@@ -724,12 +740,13 @@ public class EditorImagen extends javax.swing.JFrame {
                     // conseguir la esquina superior izquierda del rectángulo con Math.min para devolver el valor más pequeño.
                     int x = Math.min(x1, x2);
                     int y = Math.min(y1, y2);
-                    
+
                     // Añadimos la elipse dibujaba a la lista
                     elipses.add(new Ellipse2D.Double(x, y, width, height));
 
                     // dibuja la elipse
                     g2.drawOval(x, y, width, height);
+                    guardado = false;
                 }
             };
 
@@ -744,8 +761,8 @@ public class EditorImagen extends javax.swing.JFrame {
         Image img = currentImage.getImage().getScaledInstance(labelImage.getWidth(), labelImage.getHeight(), Image.SCALE_SMOOTH);
 
         // Asignamos la imagen al label
-        labelImage.setIcon(new ImageIcon(img)); 
-        
+        labelImage.setIcon(new ImageIcon(img));
+
         vaciarListas(); // Vaciamos las listas para borrar los elementos añadidos anteriormente
     }                                         
 
